@@ -13,4 +13,4 @@ cargo run
 |<kbd>w</kbd>, <kbd>s</kbd>| Move para cima e para baixo|
 |<kbd>q</kbd>| Fecha o programa|
 |<kbd>Enter</kbd>| Realiza a ação do elemento selecionado na UI|
-
+|<kbd>Tab</kbd>| Alterna entre contextos |
