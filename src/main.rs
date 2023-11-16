@@ -81,6 +81,25 @@ fn list_down(list: &Vec<String>, list_curr: &mut usize) {
     }
 }
 
+fn list_transfer(
+    list_dst: &mut Vec<String>,
+    list_src: &mut Vec<String>,
+    list_src_curr: &mut usize,
+) {
+    if *list_src_curr < list_src.len() {
+        list_dst.push(list_src.remove(*list_src_curr));
+        if *list_src_curr >= list_src.len() && list_src.len() > 0 {
+            *list_src_curr = list_src.len() - 1;
+        }
+    }
+}
+
+// TODO: persist the state of the application
+// TODO: add new elements to TODO
+// TODO: Edit the elements
+// TODO: keep track of date when the item was DONE
+// TODO: undo system
+
 fn main() {
     initscr();
     noecho();
@@ -103,7 +122,7 @@ fn main() {
         "Have a Breakfast".to_string(),
         "Study".to_string(),
     ];
-    let mut dones_cur: usize = 0;
+    let mut dones_curr: usize = 0;
     let mut todo_curr: usize = 0;
     let mut focus = Focus::Todo;
 
@@ -116,7 +135,8 @@ fn main() {
         {
             match focus {
                 Focus::Todo => {
-                    ui.label("TODO: ", REGULAR_PAIR);
+                    ui.label("[TODO] DONE ", REGULAR_PAIR);
+                    ui.label("------------", REGULAR_PAIR);
                     ui.begin_list(todo_curr);
                     for (index, todo) in todos.iter().enumerate() {
                         ui.list_element(&format!("- [ ] {}", todo), index);
@@ -124,8 +144,9 @@ fn main() {
                     ui.end_list();
                 }
                 Focus::Done => {
-                    ui.label("DONE: ", REGULAR_PAIR);
-                    ui.begin_list(dones_cur);
+                    ui.label(" TODO [DONE]", REGULAR_PAIR);
+                    ui.label("------------", REGULAR_PAIR);
+                    ui.begin_list(dones_curr);
                     for (index, done) in dones.iter().enumerate() {
                         ui.list_element(&format!("- [X] {}", done), index);
                     }
@@ -140,25 +161,18 @@ fn main() {
             'q' => quit = true,
             'w' => match focus {
                 Focus::Todo => list_up(&mut todo_curr),
-                Focus::Done => list_up(&mut dones_cur),
+                Focus::Done => list_up(&mut dones_curr),
             },
             's' => match focus {
                 Focus::Todo => list_down(&todos, &mut todo_curr),
-                Focus::Done => list_down(&dones, &mut dones_cur),
+                Focus::Done => list_down(&dones, &mut dones_curr),
             },
             '\n' => match focus {
-                Focus::Todo => {
-                    if todo_curr < todos.len() {
-                        dones.push(todos.remove(todo_curr));
-                    }
-                }
-                Focus::Done => {
-                    if todo_curr < todos.len() {
-                        todos.push(dones.remove(dones_cur));
-                    }
-                }
+                Focus::Todo => list_transfer(&mut dones, &mut todos, &mut todo_curr),
+                Focus::Done => list_transfer(&mut todos, &mut dones, &mut dones_curr),
             },
             '\t' => focus = focus.toggle(),
+            'e' => {},
 
             _ => {}
         }
