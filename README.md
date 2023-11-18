@@ -20,5 +20,4 @@ DONE: atividade completa
 |<kbd>w</kbd>, <kbd>s</kbd>| Move para cima e para baixo|
 |<kbd>q</kbd>| Fecha o programa|
 |<kbd>Enter</kbd>| Realiza a ação do elemento selecionado na UI|
-|<kbd>f</kbd>| Persiste os dados|
 |<kbd>Tab</kbd>| Alterna entre contextos |

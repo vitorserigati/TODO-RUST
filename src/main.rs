@@ -1,7 +1,7 @@
 use ncurses::*;
 use std::cmp::min;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{self, BufRead, Write};
 use std::{env, process};
 
 const REGULAR_PAIR: i16 = 0;
@@ -53,10 +53,6 @@ impl Ui {
     fn end_list(&mut self) {
         self.list_curr = None;
     }
-
-    fn end(&mut self) {
-        todo!()
-    }
 }
 
 #[derive(Debug)]
@@ -77,7 +73,7 @@ fn parse_item(line: &str) -> Option<(Status, &str)> {
     let todo_prefix: &str = "TODO: ";
     let done_prefix: &str = "DONE: ";
 
-    if line.starts_with("TODO: ") {
+    if line.starts_with(todo_prefix) {
         Some((Status::Todo, &line[todo_prefix.len()..]))
     } else if line.starts_with(done_prefix) {
         Some((Status::Done, &line[done_prefix.len()..]))
@@ -111,12 +107,37 @@ fn list_transfer(
     }
 }
 
+fn load_state(todos: &mut Vec<String>, dones: &mut Vec<String>, file_path: &str) {
+    let file = File::open(&file_path).unwrap();
+    for (index, line) in io::BufReader::new(file).lines().enumerate() {
+        match parse_item(&line.unwrap()) {
+            Some((Status::Todo, line)) => todos.push(line.to_string()),
+            Some((Status::Done, line)) => dones.push(line.to_string()),
+            None => {
+                eprintln!("{}: {}: Item mal formatado", &file_path, &index + 1);
+                process::exit(1);
+            }
+        }
+    }
+}
+
+fn save_state(todos: &Vec<String>, dones: &Vec<String>, file_path: &str) {
+    let mut file = File::create(file_path).unwrap();
+    for todo in todos.iter() {
+        writeln!(file, "TODO: {}", todo).unwrap();
+    }
+    for done in dones.iter() {
+        writeln!(file, "DONE: {}", done).unwrap();
+    }
+}
+
 // TODO: persist the state of the application
 // TODO: add new elements to TODO
 // TODO: delete items
 // TODO: Edit the elements
 // TODO: keep track of date when the item was DONE
 // TODO: undo system
+// TODO: Handle sigint
 
 fn main() {
     let mut args = env::args();
@@ -133,21 +154,9 @@ fn main() {
     };
     let mut todos: Vec<String> = Vec::<String>::new();
     let mut dones: Vec<String> = Vec::<String>::new();
-    let mut quit = false;
     let mut dones_curr: usize = 0;
     let mut todo_curr: usize = 0;
     let mut status = Status::Todo;
-
-    {
-        let file = File::open(file_path).unwrap();
-        for line in BufReader::new(file).lines() {
-            match parse_item(&line.unwrap()) {
-                Some((Status::Todo, line)) => todos.push(line.to_string()),
-                Some((Status::Done, line)) => dones.push(line.to_string()),
-                None => {}
-            }
-        }
-    }
 
     initscr();
     noecho();
@@ -159,9 +168,11 @@ fn main() {
 
     refresh();
 
+    load_state(&mut todos, &mut dones, &file_path);
+
     let mut ui = Ui::default();
 
-    while !quit {
+    loop {
         erase();
 
         ui.begin(0, 0);
@@ -191,7 +202,7 @@ fn main() {
 
         let key = getch();
         match key as u8 as char {
-            'q' => quit = true,
+            'q' => break,
             'w' => match status {
                 Status::Todo => list_up(&mut todo_curr),
                 Status::Done => list_up(&mut dones_curr),
@@ -206,20 +217,11 @@ fn main() {
             },
             '\t' => status = status.toggle(),
             'e' => {}
-            'f' => {
-                let mut file = File::create("TODO").unwrap();
-                for todo in todos.iter() {
-                    writeln!(file, "TODO: {}", todo).unwrap();
-                }
-                for done in dones.iter() {
-                    writeln!(file, "DONE: {}", done).unwrap();
-                }
-            }
 
             _ => {}
         }
     }
-    ui.end();
 
+    save_state(&todos, &dones, &file_path);
     endwin();
 }
