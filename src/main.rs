@@ -161,16 +161,14 @@ impl Status {
 }
 
 fn parse_item(line: &str) -> Option<(Status, &str)> {
-    let todo_prefix: &str = "TODO: ";
-    let done_prefix: &str = "DONE: ";
+    let todo_item = line
+        .strip_prefix("TODO: ")
+        .map(|title| (Status::Todo, title));
+    let done_item = line
+        .strip_prefix("DONE: ")
+        .map(|title| (Status::Done, title));
 
-    if line.starts_with(todo_prefix) {
-        Some((Status::Todo, &line[todo_prefix.len()..]))
-    } else if line.starts_with(done_prefix) {
-        Some((Status::Done, &line[done_prefix.len()..]))
-    } else {
-        None
-    }
+    todo_item.or(done_item)
 }
 
 fn list_up(list_curr: &mut usize) {
@@ -192,14 +190,14 @@ fn list_transfer(
 ) {
     if *list_src_curr < list_src.len() {
         list_dst.push(list_src.remove(*list_src_curr));
-        if *list_src_curr >= list_src.len() && list_src.len() > 0 {
+        if *list_src_curr >= list_src.len() && !list_src.is_empty() {
             *list_src_curr = list_src.len() - 1;
         }
     }
 }
 
 fn load_state(todos: &mut Vec<String>, dones: &mut Vec<String>, file_path: &str) {
-    let file = File::open(&file_path).unwrap();
+    let file = File::open(file_path).unwrap();
     for (index, line) in io::BufReader::new(file).lines().enumerate() {
         match parse_item(&line.unwrap()) {
             Some((Status::Todo, line)) => todos.push(line.to_string()),
@@ -212,7 +210,7 @@ fn load_state(todos: &mut Vec<String>, dones: &mut Vec<String>, file_path: &str)
     }
 }
 
-fn save_state(todos: &Vec<String>, dones: &Vec<String>, file_path: &str) {
+fn save_state(todos: &[String], dones: &[String], file_path: &str) {
     let mut file = File::create(file_path).unwrap();
     for todo in todos.iter() {
         writeln!(file, "TODO: {}", todo).unwrap();
@@ -222,7 +220,6 @@ fn save_state(todos: &Vec<String>, dones: &Vec<String>, file_path: &str) {
     }
 }
 
-// TODO: persist the state of the application
 // TODO: add new elements to TODO
 // TODO: delete items
 // TODO: Edit the elements
@@ -270,7 +267,11 @@ fn main() {
         {
             ui.begin_layout(LayoutKind::Vertical);
             {
-                ui.label("TODO:", REGULAR_PAIR);
+                match status {
+                    Status::Todo => ui.label("[TODO]:", REGULAR_PAIR),
+                    Status::Done => ui.label(" TODO :", REGULAR_PAIR),
+                }
+
                 for (index, todo) in todos.iter().enumerate() {
                     ui.label(
                         &format!("- [ ] {}", todo),
@@ -286,7 +287,11 @@ fn main() {
 
             ui.begin_layout(LayoutKind::Vertical);
             {
-                ui.label("DONE:", REGULAR_PAIR);
+                match status {
+                    Status::Todo => ui.label(" DONE :", REGULAR_PAIR),
+                    Status::Done => ui.label("[DONE]:", REGULAR_PAIR),
+                }
+
                 for (index, done) in dones.iter().enumerate() {
                     ui.label(
                         &format!("- [X] {}", done),
