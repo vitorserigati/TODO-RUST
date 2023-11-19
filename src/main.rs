@@ -184,9 +184,9 @@ fn drag_up(list: &mut [String], pos: &mut usize) {
 }
 
 fn drag_down(list: &mut [String], pos: &mut usize) {
-    if !list.is_empty() && *pos + 1 < list.len()  {
+    if !list.is_empty() && *pos + 1 < list.len() {
         list.swap(*pos + 1, *pos);
-        *pos +=  1;
+        *pos += 1;
     }
 }
 
