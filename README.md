@@ -18,6 +18,7 @@ DONE: atividade completa
 |Keys|Descrição|
 |---|---|
 |<kbd>w</kbd>, <kbd>s</kbd>| Move para cima e para baixo|
+|<kbd>W</kbd>, <kbd>S</kbd>| Arrasta o item selecionado para cima e para baixo|
 |<kbd>q</kbd>| Fecha o programa|
 |<kbd>d</kbd>| Deleta o item selecionado|
 |<kbd>Enter</kbd>| Realiza a ação do elemento selecionado na UI|

@@ -176,6 +176,20 @@ fn parse_item(line: &str) -> Option<(Status, &str)> {
     todo_item.or(done_item)
 }
 
+fn drag_up(list: &mut [String], pos: &mut usize) {
+    if !list.is_empty() && *pos > 0 {
+        list.swap(*pos - 1, *pos);
+        *pos = *pos - 1;
+    }
+}
+
+fn drag_down(list: &mut [String], pos: &mut usize) {
+    if !list.is_empty() && *pos < list.len() - 1 {
+        list.swap(*pos + 1, *pos);
+        *pos = *pos + 1;
+    }
+}
+
 fn list_up(list_curr: &mut usize) {
     if *list_curr > 0 {
         *list_curr -= 1
@@ -330,6 +344,10 @@ fn main() {
         let key = getch();
         match key as u8 as char {
             'q' => break,
+            'W' => match panel {
+                Status::Todo => drag_up(&mut todos, &mut todo_curr),
+                Status::Done => drag_up(&mut dones, &mut dones_curr),
+            },
             'w' => match panel {
                 Status::Todo => list_up(&mut todo_curr),
                 Status::Done => list_up(&mut dones_curr),
@@ -337,6 +355,10 @@ fn main() {
             's' => match panel {
                 Status::Todo => list_down(&todos, &mut todo_curr),
                 Status::Done => list_down(&dones, &mut dones_curr),
+            },
+            'S' => match panel {
+                Status::Todo => drag_down(&mut todos, &mut todo_curr),
+                Status::Done => drag_down(&mut dones, &mut dones_curr),
             },
             '\n' => match panel {
                 Status::Todo => list_transfer(&mut dones, &mut todos, &mut todo_curr),
