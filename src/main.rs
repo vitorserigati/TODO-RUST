@@ -123,7 +123,7 @@ impl Ui {
             .add_widget(layout.size);
     }
 
-    fn label(&mut self, label: &str, pair: i16) {
+    fn label_fixed_width(&mut self, label: &str, pair: i16, size: i32) {
         let layout = self
             .layouts
             .last_mut()
@@ -136,7 +136,12 @@ impl Ui {
         addstr(label);
         attroff(COLOR_PAIR(pair));
 
-        layout.add_widget(Vec2d::new(label.len() as i32, 1));
+        layout.add_widget(Vec2d::new(size, 1));
+    }
+
+    #[allow(dead_code)]
+    fn label(&mut self, label: &str, pair: i16) {
+        self.label_fixed_width(label, pair, label.len() as i32)
     }
 
     fn end(&mut self) {
@@ -244,7 +249,7 @@ fn main() {
     let mut dones: Vec<String> = Vec::<String>::new();
     let mut dones_curr: usize = 0;
     let mut todo_curr: usize = 0;
-    let mut status = Status::Todo;
+    let mut panel = Status::Todo;
 
     initscr();
     noecho();
@@ -263,23 +268,29 @@ fn main() {
     loop {
         erase();
 
+        let mut x = 0;
+        let mut y = 0;
+
+        getmaxyx(stdscr(), &mut x, &mut y);
+
         ui.begin(Vec2d::new(0, 0), LayoutKind::Horizontal);
         {
             ui.begin_layout(LayoutKind::Vertical);
             {
-                match status {
-                    Status::Todo => ui.label("[TODO]:", REGULAR_PAIR),
-                    Status::Done => ui.label(" TODO :", REGULAR_PAIR),
+                match panel {
+                    Status::Todo => ui.label_fixed_width("[TODO]:", REGULAR_PAIR, x / 2),
+                    Status::Done => ui.label_fixed_width(" TODO :", REGULAR_PAIR, x / 2),
                 }
 
                 for (index, todo) in todos.iter().enumerate() {
-                    ui.label(
+                    ui.label_fixed_width(
                         &format!("- [ ] {}", todo),
-                        if index == todo_curr && status == Status::Todo {
+                        if index == todo_curr && panel == Status::Todo {
                             HIGHLIGHT_PAIR
                         } else {
                             REGULAR_PAIR
                         },
+                        x / 2,
                     );
                 }
             }
@@ -287,19 +298,20 @@ fn main() {
 
             ui.begin_layout(LayoutKind::Vertical);
             {
-                match status {
-                    Status::Todo => ui.label(" DONE :", REGULAR_PAIR),
-                    Status::Done => ui.label("[DONE]:", REGULAR_PAIR),
+                match panel {
+                    Status::Todo => ui.label_fixed_width(" DONE :", REGULAR_PAIR, x / 2),
+                    Status::Done => ui.label_fixed_width("[DONE]:", REGULAR_PAIR, x / 2),
                 }
 
                 for (index, done) in dones.iter().enumerate() {
-                    ui.label(
+                    ui.label_fixed_width(
                         &format!("- [X] {}", done),
-                        if index == dones_curr && status == Status::Done {
+                        if index == dones_curr && panel == Status::Done {
                             HIGHLIGHT_PAIR
                         } else {
                             REGULAR_PAIR
                         },
+                        x / 2,
                     );
                 }
             }
@@ -312,19 +324,19 @@ fn main() {
         let key = getch();
         match key as u8 as char {
             'q' => break,
-            'w' => match status {
+            'w' => match panel {
                 Status::Todo => list_up(&mut todo_curr),
                 Status::Done => list_up(&mut dones_curr),
             },
-            's' => match status {
+            's' => match panel {
                 Status::Todo => list_down(&todos, &mut todo_curr),
                 Status::Done => list_down(&dones, &mut dones_curr),
             },
-            '\n' => match status {
+            '\n' => match panel {
                 Status::Todo => list_transfer(&mut dones, &mut todos, &mut todo_curr),
                 Status::Done => list_transfer(&mut todos, &mut dones, &mut dones_curr),
             },
-            '\t' => status = status.toggle(),
+            '\t' => panel = panel.toggle(),
             'i' => {}
             _ => {}
         }
