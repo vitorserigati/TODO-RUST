@@ -179,14 +179,14 @@ fn parse_item(line: &str) -> Option<(Status, &str)> {
 fn drag_up(list: &mut [String], pos: &mut usize) {
     if !list.is_empty() && *pos > 0 {
         list.swap(*pos - 1, *pos);
-        *pos = *pos - 1;
+        *pos -= 1;
     }
 }
 
 fn drag_down(list: &mut [String], pos: &mut usize) {
-    if !list.is_empty() && *pos < list.len() - 1 {
+    if !list.is_empty() && *pos + 1 < list.len()  {
         list.swap(*pos + 1, *pos);
-        *pos = *pos + 1;
+        *pos +=  1;
     }
 }
 
