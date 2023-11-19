@@ -2,6 +2,8 @@
 
 Uma Simples aplicação de console interativa.
 
+![Thumbnail](./thumbnail.png)
+
 ## Quick Start
 ```console
 

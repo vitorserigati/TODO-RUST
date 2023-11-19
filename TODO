@@ -1,7 +1,4 @@
-TODO: Sistema de Desfazer
-TODO: SIGINT
-TODO: Salvar data
-TODO: Editar Elementos
 TODO: Adicionar novos elementos
-TODO: Testar aplicação
+TODO: Editar Elementos
 DONE: Deletar Itens
+DONE: SIGINT

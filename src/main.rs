@@ -215,9 +215,12 @@ fn list_transfer(
     }
 }
 
-fn delete_from_list(list: &mut Vec<String>, pos: &usize) {
+fn delete_from_list(list: &mut Vec<String>, pos: &mut usize) {
     if !list.is_empty() {
         list.remove(*pos);
+        if *pos >= list.len() && !list.is_empty() {
+            *pos -= 1;
+        }
     }
 }
 
@@ -282,17 +285,15 @@ fn main() {
     refresh();
 
     load_state(&mut todos, &mut dones, &file_path);
+    let mut x = 0;
+    let mut y = 0;
 
     let mut ui = Ui::default();
 
     loop {
         erase();
 
-        let mut x = 0;
-        let mut y = 0;
-
-        getmaxyx(stdscr(), &mut x, &mut y);
-
+        getmaxyx(stdscr(), &mut y, &mut x);
         ui.begin(Vec2d::new(0, 0), LayoutKind::Horizontal);
         {
             ui.begin_layout(LayoutKind::Vertical);
@@ -365,8 +366,8 @@ fn main() {
                 Status::Done => list_transfer(&mut todos, &mut dones, &mut dones_curr),
             },
             'd' => match panel {
-                Status::Todo => delete_from_list(&mut todos, &todo_curr),
-                Status::Done => delete_from_list(&mut dones, &dones_curr),
+                Status::Todo => delete_from_list(&mut todos, &mut todo_curr),
+                Status::Done => delete_from_list(&mut dones, &mut dones_curr),
             },
             '\t' => panel = panel.toggle(),
             'i' => {}
