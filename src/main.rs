@@ -201,6 +201,12 @@ fn list_transfer(
     }
 }
 
+fn delete_from_list(list: &mut Vec<String>, pos: &usize) {
+    if !list.is_empty() {
+        list.remove(*pos);
+    }
+}
+
 fn load_state(todos: &mut Vec<String>, dones: &mut Vec<String>, file_path: &str) {
     let file = File::open(file_path).unwrap();
     for (index, line) in io::BufReader::new(file).lines().enumerate() {
@@ -335,6 +341,10 @@ fn main() {
             '\n' => match panel {
                 Status::Todo => list_transfer(&mut dones, &mut todos, &mut todo_curr),
                 Status::Done => list_transfer(&mut todos, &mut dones, &mut dones_curr),
+            },
+            'd' => match panel {
+                Status::Todo => delete_from_list(&mut todos, &todo_curr),
+                Status::Done => delete_from_list(&mut dones, &dones_curr),
             },
             '\t' => panel = panel.toggle(),
             'i' => {}
