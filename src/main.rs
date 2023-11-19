@@ -1,61 +1,152 @@
 use ncurses::*;
-use std::cmp::min;
+use std::cmp::{self, min};
 use std::fs::File;
 use std::io::{self, BufRead, Write};
+use std::ops::{Add, Mul};
 use std::{env, process};
 
 const REGULAR_PAIR: i16 = 0;
 const HIGHLIGHT_PAIR: i16 = 1;
 
-type Id = usize;
+enum LayoutKind {
+    Vertical,
+    Horizontal,
+}
+
+#[derive(Default, Clone, Copy, Debug)]
+struct Vec2d {
+    x: i32,
+    y: i32,
+}
+
+impl Add for Vec2d {
+    type Output = Vec2d;
+
+    fn add(self, rhs: Vec2d) -> Self::Output {
+        Self::Output {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+impl Mul for Vec2d {
+    type Output = Vec2d;
+
+    fn mul(self, rhs: Vec2d) -> Self::Output {
+        Self::Output {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+        }
+    }
+}
+
+impl Vec2d {
+    fn new(x: i32, y: i32) -> Self {
+        Self { x, y }
+    }
+}
+struct Layout {
+    kind: LayoutKind,
+    pos: Vec2d,
+    size: Vec2d,
+}
+
+impl Layout {
+    fn new(kind: LayoutKind, pos: Vec2d) -> Self {
+        Self {
+            kind,
+            pos,
+            size: Vec2d::new(0, 0),
+        }
+    }
+
+    fn available_pos(&self) -> Vec2d {
+        use LayoutKind::*;
+
+        match self.kind {
+            Horizontal => self.pos + self.size * Vec2d::new(1, 0),
+            Vertical => self.pos + self.size * Vec2d::new(0, 1),
+        }
+    }
+
+    fn add_widget(&mut self, size: Vec2d) {
+        use LayoutKind::*;
+
+        match self.kind {
+            Vertical => {
+                self.size.x = cmp::max(self.size.x, size.x);
+                self.size.y += size.y;
+            }
+            Horizontal => {
+                self.size.x += size.x;
+                self.size.y = cmp::max(self.size.y, size.y);
+            }
+        }
+    }
+}
 
 #[derive(Default)]
 struct Ui {
-    list_curr: Option<Id>,
-    row: usize,
-    col: usize,
+    layouts: Vec<Layout>,
 }
 
 impl Ui {
-    fn begin(&mut self, row: usize, col: usize) {
-        self.row = row;
-        self.col = col;
+    fn begin(&mut self, pos: Vec2d, kind: LayoutKind) {
+        assert!(self.layouts.is_empty());
+
+        self.layouts.push(Layout {
+            kind,
+            pos,
+            size: Vec2d::new(0, 0),
+        })
     }
-    fn begin_list(&mut self, id: Id) {
-        assert!(self.list_curr.is_none(), "Nested Lists are not allowed!");
-        self.list_curr = Some(id);
+
+    fn begin_layout(&mut self, kind: LayoutKind) {
+        let layout = self
+            .layouts
+            .last()
+            .expect("Can't create a layout outside of Ui::begin() and Ui::end()");
+
+        let pos = layout.available_pos();
+        self.layouts.push(Layout::new(kind, pos))
+    }
+
+    fn end_layout(&mut self) {
+        let layout = self
+            .layouts
+            .pop()
+            .expect("Unbalanced UI::begin_layout() and UI::end_layout() calls.");
+
+        self.layouts
+            .last_mut()
+            .expect("Unbalanced UI::begin_layout() and UI::end_layout() calls.")
+            .add_widget(layout.size);
     }
 
     fn label(&mut self, label: &str, pair: i16) {
-        mv(self.row as i32, self.col as i32);
+        let layout = self
+            .layouts
+            .last_mut()
+            .expect("Trying to render label outside of any layout");
+
+        let pos = layout.available_pos();
+
+        mv(pos.y, pos.x);
         attron(COLOR_PAIR(pair));
         addstr(label);
         attroff(COLOR_PAIR(pair));
-        self.row += 1;
+
+        layout.add_widget(Vec2d::new(label.len() as i32, 1));
     }
 
-    fn list_element(&mut self, label: &str, id: Id) -> bool {
-        let id_curr = self
-            .list_curr
-            .expect("Not allowed to create list elements outside of lists");
-
-        self.label(label, {
-            if id_curr == id {
-                HIGHLIGHT_PAIR
-            } else {
-                REGULAR_PAIR
-            }
-        });
-
-        return false;
-    }
-
-    fn end_list(&mut self) {
-        self.list_curr = None;
+    fn end(&mut self) {
+        self.layouts
+            .pop()
+            .expect("Unbalanced UI::begin_layout() and UI::end_layout() calls.");
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Status {
     Todo,
     Done,
@@ -175,29 +266,42 @@ fn main() {
     loop {
         erase();
 
-        ui.begin(0, 0);
+        ui.begin(Vec2d::new(0, 0), LayoutKind::Horizontal);
         {
-            match status {
-                Status::Todo => {
-                    ui.label("[TODO] DONE ", REGULAR_PAIR);
-                    ui.label("------------", REGULAR_PAIR);
-                    ui.begin_list(todo_curr);
-                    for (index, todo) in todos.iter().enumerate() {
-                        ui.list_element(&format!("- [ ] {}", todo), index);
-                    }
-                    ui.end_list();
-                }
-                Status::Done => {
-                    ui.label(" TODO [DONE]", REGULAR_PAIR);
-                    ui.label("------------", REGULAR_PAIR);
-                    ui.begin_list(dones_curr);
-                    for (index, done) in dones.iter().enumerate() {
-                        ui.list_element(&format!("- [X] {}", done), index);
-                    }
-                    ui.end_list();
+            ui.begin_layout(LayoutKind::Vertical);
+            {
+                ui.label("TODO:", REGULAR_PAIR);
+                for (index, todo) in todos.iter().enumerate() {
+                    ui.label(
+                        &format!("- [ ] {}", todo),
+                        if index == todo_curr && status == Status::Todo {
+                            HIGHLIGHT_PAIR
+                        } else {
+                            REGULAR_PAIR
+                        },
+                    );
                 }
             }
+            ui.end_layout();
+
+            ui.begin_layout(LayoutKind::Vertical);
+            {
+                ui.label("DONE:", REGULAR_PAIR);
+                for (index, done) in dones.iter().enumerate() {
+                    ui.label(
+                        &format!("- [X] {}", done),
+                        if index == dones_curr && status == Status::Done {
+                            HIGHLIGHT_PAIR
+                        } else {
+                            REGULAR_PAIR
+                        },
+                    );
+                }
+            }
+            ui.end_layout();
         }
+        ui.end();
+
         refresh();
 
         let key = getch();
@@ -216,8 +320,7 @@ fn main() {
                 Status::Done => list_transfer(&mut todos, &mut dones, &mut dones_curr),
             },
             '\t' => status = status.toggle(),
-            'e' => {}
-
+            'i' => {}
             _ => {}
         }
     }
